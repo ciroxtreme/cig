@@ -54,7 +54,9 @@ def main():
     if not files:
         reason = "yt-dlp gagal download." if FAILED else "tidak ada media yang ke-download."
         send_text(f"❌ Gagal download Instagram.\n{reason}\nLink: {URL}")
+        print(f"SENT failure message to {CHAT_ID} (YTDLP_FAILED={FAILED})")
         return
+    print(f"Found {len(files)} file(s) to send: {files}")
     for p in files:
         name = os.path.basename(p)
         data = open(p, "rb").read()
@@ -70,7 +72,9 @@ def main():
             else:
                 tg("sendDocument", {"chat_id": CHAT_ID, "caption": f"📸 {URL}"},
                    files={"document": (name, data, "application/octet-stream")})
+            print(f"SENT {name} ({len(data)} bytes) to {CHAT_ID}")
         except Exception as e:
+            print(f"FAILED to send {name}: {e}")
             send_text(f"❌ Gagal kirim file {name}: {e}")
 
 
