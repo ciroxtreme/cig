@@ -12,7 +12,7 @@ on:
         required: true
         type: string
   repository_dispatch:
-    types: [igdl]
+    types: [cig]
 
 jobs:
   download:
