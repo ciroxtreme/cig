@@ -1,0 +1,58 @@
+name: IG Downloader (yt-dlp + cookies)
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Link Instagram (reel/post/story)"
+        required: true
+        type: string
+      chat_id:
+        description: "Telegram chat id tujuan"
+        required: true
+        type: string
+  repository_dispatch:
+    types: [igdl]
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve inputs
+        id: inputs
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "url=${{ github.event.client_payload.url }}" >> $GITHUB_OUTPUT
+            echo "chat_id=${{ github.event.client_payload.chat_id }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ inputs.url }}" >> $GITHUB_OUTPUT
+            echo "chat_id=${{ inputs.chat_id }}" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Install yt-dlp
+        run: pip install -q yt-dlp
+
+      - name: Restore IG cookies (akun tumbal)
+        run: |
+          printf '%s' '${{ secrets.IG_COOKIES }}' | base64 -d > cookies.txt
+          wc -l cookies.txt
+
+      - name: Download
+        run: |
+          mkdir -p out
+          yt-dlp --cookies cookies.txt --no-playlist \
+            --max-filesize 45M \
+            -o "out/%(title).50s-%(id)s.%(ext)s" \
+            --format "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b" \
+            "${{ steps.inputs.outputs.url }}" || echo "YTDLP_FAILED=1" >> $GITHUB_ENV
+          ls -la out || true
+
+      - name: Send to Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ steps.inputs.outputs.chat_id }}
+          URL: ${{ steps.inputs.outputs.url }}
+        run: python3 send_to_telegram.py
